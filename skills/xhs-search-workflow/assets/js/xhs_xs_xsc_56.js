@@ -147,11 +147,11 @@ globalThis.XMLHttpRequest = function (tagName) {
     console.log(`特殊检测: XMLHttpRequest 被调用 (对象: ${tagName})`);
 
 }
-globalThis.Ιnfinity = function (tagName){
+globalThis.Infinity = function (tagName){
     console.log(`特殊检测: Infinity 被调用 (对象: ${tagName})`);
 }
-globalThis.Ιnk = function (tagName){
-    console.log(`特殊检测: Ιnk 被调用 (对象: ${tagName})`);
+globalThis.Ink = function (tagName){
+    console.log(`特殊检测: Ink 被调用 (对象: ${tagName})`);
 }
 globalThis.DeviceOrientationEvent = function (tagName){
     console.log(`特殊检测: DeviceOrientationEvent 被调用 (对象: ${tagName})`);

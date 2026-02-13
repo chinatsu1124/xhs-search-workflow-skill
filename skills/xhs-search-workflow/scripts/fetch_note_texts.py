@@ -2,6 +2,8 @@
 import argparse
 import json
 import os
+import random
+import time
 from pathlib import Path
 from urllib.parse import urlparse
 from typing import List, Dict, Any
@@ -57,13 +59,13 @@ def image_ext_from_url(url: str) -> str:
     return ".jpg"
 
 
-def download_images(image_urls: List[str], image_dir: Path, note_id: str) -> List[str]:
+def download_images(image_urls: List[str], image_dir: Path, note_id: str, timeout: int) -> List[str]:
     image_dir.mkdir(parents=True, exist_ok=True)
     saved: List[str] = []
     for idx, url in enumerate(image_urls, 1):
         ext = image_ext_from_url(url)
         file_path = image_dir / f"{note_id}_image_{idx}{ext}"
-        resp = requests.get(url, timeout=30)
+        resp = requests.get(url, timeout=timeout)
         resp.raise_for_status()
         file_path.write_bytes(resp.content)
         saved.append(str(file_path))
@@ -79,6 +81,10 @@ def main() -> int:
     parser.add_argument("--no-env-proxy", action="store_true", help="Disable proxy env vars for this run")
     parser.add_argument("--download-images", action="store_true", help="Download image files for each note")
     parser.add_argument("--image-dir", default="xhs_images", help="Directory to save downloaded images")
+    parser.add_argument("--timeout", type=int, default=30, help="Timeout seconds per note/image request")
+    parser.add_argument("--retries", type=int, default=2, help="Retry times per note on failure")
+    parser.add_argument("--min-interval", type=float, default=4.0, help="Minimum sleep seconds between notes")
+    parser.add_argument("--max-interval", type=float, default=7.0, help="Maximum sleep seconds between notes")
     parser.add_argument("--out", help="Write JSON output to a file")
     args = parser.parse_args()
 
@@ -91,10 +97,25 @@ def main() -> int:
 
     cookies = load_cookies(cookie_arg=args.cookie, env_file=args.env_file)
 
+    if args.min_interval < 0 or args.max_interval < 0:
+        raise SystemExit("--min-interval/--max-interval must be >= 0")
+    if args.max_interval < args.min_interval:
+        raise SystemExit("--max-interval must be >= --min-interval")
+
     rows: List[Dict[str, Any]] = []
 
-    for url in urls:
-        success, msg, res = get_note_info(url, cookies)
+    for idx, url in enumerate(urls):
+        success = False
+        msg = ""
+        res: Dict[str, Any] = {}
+        attempts = max(args.retries, 0) + 1
+        for attempt in range(1, attempts + 1):
+            success, msg, res = get_note_info(url, cookies, timeout=args.timeout)
+            if success:
+                break
+            if attempt < attempts:
+                time.sleep(random.uniform(1.0, 2.5))
+
         row: Dict[str, Any] = {"url": url, "success": success, "msg": msg}
         if success:
             items = (res or {}).get("data", {}).get("items", [])
@@ -113,11 +134,13 @@ def main() -> int:
                 )
                 if args.download_images and image_urls:
                     try:
-                        saved_files = download_images(image_urls, Path(args.image_dir), str(row["note_id"]))
+                        saved_files = download_images(image_urls, Path(args.image_dir), str(row["note_id"]), timeout=args.timeout)
                         row["downloaded_images"] = saved_files
                     except Exception as e:
                         row["download_error"] = str(e)
         rows.append(row)
+        if idx < len(urls) - 1:
+            time.sleep(random.uniform(args.min_interval, args.max_interval))
 
     print(json.dumps(rows, ensure_ascii=False, indent=2))
     if args.out:

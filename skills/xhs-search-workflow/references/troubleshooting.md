@@ -101,3 +101,36 @@
 - Fix:
   - Use output file:
   - `.../xhs_full_cli.py --env-file .env --out /tmp/messages.json messages-mentions`
+
+## 20) JS parser fails on `Expected ident`
+- Symptom: Node/execjs throws syntax error around `Ιnfinity` / `Ιnk`.
+- Cause: non-ASCII confusable characters in identifier names.
+- Fix:
+  - Use ASCII identifiers only (`Infinity` / `Ink`).
+  - Verify with: `node -c skills/xhs-search-workflow/assets/js/xhs_xs_xsc_56.js`
+
+## 21) `Cannot find module './static/xhs_xray_pack1.js'`
+- Cause: runtime cwd/path differs and relative `./static/*` is missing.
+- Fix:
+  - Run setup script to sync static packs:
+  - `skills/xhs-search-workflow/scripts/setup_env.sh`
+  - `xhs_client.py` also auto-creates `assets/js/static/` with required pack files.
+
+## 22) Windows console `UnicodeEncodeError` (GBK)
+- Symptom: printing JSON with non-ASCII fails in PowerShell/CMD.
+- Fix:
+  - Set UTF-8 before running:
+  - PowerShell: `$env:PYTHONUTF8='1'; $env:PYTHONIOENCODING='utf-8'`
+  - CMD: `set PYTHONUTF8=1 && set PYTHONIOENCODING=utf-8`
+
+## 23) PowerShell fails on `python - <<'PY'`
+- Symptom: heredoc syntax error in Windows PowerShell.
+- Fix:
+  - Use temp file execution instead:
+  - `Set-Content tmp.py 'print(\"ok\")'; python tmp.py; Remove-Item tmp.py`
+
+## 24) Batch note fetch hangs or triggers risk-control
+- Fix:
+  - Use serial mode with built-in throttling/retry:
+  - `.../fetch_note_texts.py --timeout 30 --retries 2 --min-interval 4 --max-interval 7`
+  - Suggested range in unstable networks: timeout 25-40s, interval 4-7s.

@@ -4,6 +4,8 @@ import math
 import os
 import random
 import re
+import shutil
+import sys
 import urllib.parse
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
@@ -17,6 +19,40 @@ SKILL_DIR = Path(__file__).resolve().parents[1]
 JS_DIR = SKILL_DIR / "assets" / "js"
 
 
+def configure_utf8_stdio() -> None:
+    # Keep CLI output UTF-8 on Windows (GBK console can fail on non-ASCII JSON).
+    os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+    os.environ.setdefault("PYTHONUTF8", "1")
+    for stream_name in ("stdout", "stderr"):
+        stream = getattr(sys, stream_name, None)
+        if stream and hasattr(stream, "reconfigure"):
+            try:
+                stream.reconfigure(encoding="utf-8", errors="replace")
+            except Exception:
+                pass
+
+
+def ensure_js_assets() -> None:
+    required = (
+        JS_DIR / "xhs_xray.js",
+        JS_DIR / "xhs_xray_pack1.js",
+        JS_DIR / "xhs_xray_pack2.js",
+        JS_DIR / "xhs_xs_xsc_56.js",
+    )
+    missing = [str(p) for p in required if not p.exists()]
+    if missing:
+        raise FileNotFoundError("Missing JS assets: " + ", ".join(missing))
+
+    # Compatibility shim for environments expecting ./static/* paths.
+    static_dir = JS_DIR / "static"
+    static_dir.mkdir(parents=True, exist_ok=True)
+    for filename in ("xhs_xray_pack1.js", "xhs_xray_pack2.js"):
+        src = JS_DIR / filename
+        dst = static_dir / filename
+        if not dst.exists():
+            shutil.copy2(src, dst)
+
+
 def _compile_with_cwd(js_file: Path) -> execjs.ExternalRuntime.Context:
     bootstrap = (
         f"process.chdir({json.dumps(str(JS_DIR))});\n"
@@ -26,6 +62,8 @@ def _compile_with_cwd(js_file: Path) -> execjs.ExternalRuntime.Context:
     return execjs.compile(bootstrap + source)
 
 
+configure_utf8_stdio()
+ensure_js_assets()
 _JS_XS = _compile_with_cwd(JS_DIR / "xhs_xs_xsc_56.js")
 _JS_XRAY = _compile_with_cwd(JS_DIR / "xhs_xray.js")
 
@@ -311,7 +349,7 @@ def get_user_all_collect_note_info(user_url: str, cookies_str: str) -> Tuple[boo
 
 
 # ---------- Note/Search ----------
-def get_note_info(url: str, cookies_str: str) -> Tuple[bool, str, Dict[str, Any]]:
+def get_note_info(url: str, cookies_str: str, timeout: int = 30) -> Tuple[bool, str, Dict[str, Any]]:
     note_id, xsec_token, xsec_source = _parse_note_url(url)
     data = {
         "source_note_id": note_id,
@@ -320,7 +358,7 @@ def get_note_info(url: str, cookies_str: str) -> Tuple[bool, str, Dict[str, Any]
         "xsec_source": xsec_source,
         "xsec_token": xsec_token,
     }
-    return _request_json("POST", "/api/sns/web/v1/feed", cookies_str, data=data)
+    return _request_json("POST", "/api/sns/web/v1/feed", cookies_str, data=data, timeout=timeout)
 
 
 def get_search_keyword(word: str, cookies_str: str) -> Tuple[bool, str, Dict[str, Any]]:

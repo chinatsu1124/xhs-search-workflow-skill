@@ -417,22 +417,31 @@ var zc666;
     zc666 = f;
 }();
 //# sourceMappingURL=https://picasso-private-1251524319.cos.ap-shanghai.myqcloud.com/data/formula-static/formula/xhs-pc-web/runtime-main.8718828.js.map
+var __xhsJsBaseDir = (typeof globalThis !== "undefined" && globalThis.__XHS_SKILL_JS_DIR) ? globalThis.__XHS_SKILL_JS_DIR : ".";
 try {
-    require('./xhs_xray_pack1.js');
+    require(__xhsJsBaseDir + '/xhs_xray_pack1.js');
 } catch (e) {
     try {
-        require('../static/xhs_xray_pack1.js');
+        require('./xhs_xray_pack1.js');
     } catch (e) {
-        require('./static/xhs_xray_pack1.js');
+        try {
+            require('../static/xhs_xray_pack1.js');
+        } catch (e) {
+            require('./static/xhs_xray_pack1.js');
+        }
     }
 }
 try {
-    require('./xhs_xray_pack2.js');
+    require(__xhsJsBaseDir + '/xhs_xray_pack2.js');
 } catch (e) {
     try {
-        require('../static/xhs_xray_pack2.js');
+        require('./xhs_xray_pack2.js');
     } catch (e) {
-        require('./static/xhs_xray_pack2.js');
+        try {
+            require('../static/xhs_xray_pack2.js');
+        } catch (e) {
+            require('./static/xhs_xray_pack2.js');
+        }
     }
 }
 var n = zc666(36497)

@@ -40,7 +40,9 @@ skills/xhs-search-workflow/.venv/bin/python \
 ```bash
 skills/xhs-search-workflow/.venv/bin/python \
   skills/xhs-search-workflow/scripts/fetch_note_texts.py \
-  --url-file note_urls.txt --no-env-proxy --out note_content.json
+  --url-file note_urls.txt --no-env-proxy \
+  --timeout 30 --retries 2 --min-interval 4 --max-interval 7 \
+  --out note_content.json
 ```
 
 ### 3) Download note images while extracting
@@ -48,7 +50,9 @@ skills/xhs-search-workflow/.venv/bin/python \
 skills/xhs-search-workflow/.venv/bin/python \
   skills/xhs-search-workflow/scripts/fetch_note_texts.py \
   --url-file note_urls.txt --no-env-proxy \
-  --download-images --image-dir xhs_images --out note_content.json
+  --download-images --image-dir xhs_images \
+  --timeout 30 --retries 2 --min-interval 4 --max-interval 7 \
+  --out note_content.json
 ```
 
 ### 4) Full API CLI examples
@@ -143,10 +147,13 @@ skills/xhs-search-workflow/.venv/bin/python skills/xhs-search-workflow/scripts/e
 - Prefer `skills/xhs-search-workflow/.venv/bin/python` instead of system `python`.
 - If environment changed, rerun `scripts/setup_env.sh` before debugging.
 - Keep `assets/js/vendor/crypto-js.js` with the skill for cross-machine offline use.
+- Scripts force UTF-8 stdout/stderr; on Windows, also set `PYTHONUTF8=1` and `PYTHONIOENCODING=utf-8`.
+- `scripts/xhs_client.py` auto-checks JS assets and syncs `assets/js/static/xhs_xray_pack{1,2}.js` for runtime compatibility.
 - For `xhs_full_cli.py`, place global flags before subcommand:
   - Correct: `xhs_full_cli.py --env-file .env --no-env-proxy <subcommand> ...`
   - Wrong: `xhs_full_cli.py <subcommand> ... --env-file .env`
 - `messages-mentions/messages-likes/messages-connections` can return very large JSON; prefer `--out` to file.
+- `fetch_note_texts.py` defaults to serial throttling and retries to reduce hang/risk-control issues.
 
 ## Troubleshooting
 See `references/troubleshooting.md`.
