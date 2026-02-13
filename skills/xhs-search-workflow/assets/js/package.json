@@ -1,0 +1,7 @@
+{
+  "name": "xhs-search-workflow-js",
+  "private": true,
+  "dependencies": {
+    "crypto-js": "^4.2.0"
+  }
+}

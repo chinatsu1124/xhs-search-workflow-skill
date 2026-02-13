@@ -1,0 +1,4 @@
+interface:
+  display_name: "XHS Full Workflow"
+  short_description: "Standalone XHS search, extraction, API, export"
+  default_prompt: "Use $xhs-search-workflow to run fully standalone Xiaohongshu workflows: search notes/users, extract note text/images/comments, read user/homefeed/message/creator data, convert no-watermark URLs, and export Excel/media outputs."
