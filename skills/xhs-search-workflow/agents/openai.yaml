@@ -1,4 +1,4 @@
 interface:
-  display_name: "XHS Full Workflow"
-  short_description: "Standalone XHS search, extraction, API, export"
-  default_prompt: "Use $xhs-search-workflow to run fully standalone Xiaohongshu workflows: search notes/users, extract note text/images/comments, read user/homefeed/message/creator data, convert no-watermark URLs, and export Excel/media outputs."
+  display_name: "小红书全流程 / XHS Full Workflow"
+  short_description: "独立检索与导出 / Standalone search and export"
+  default_prompt: "使用 $xhs-search-workflow 执行独立小红书工作流：搜索笔记/用户、提取正文/图片/评论、获取用户/首页/消息/创作者数据、转换无水印链接并导出 Excel/媒体。Use $xhs-search-workflow for a standalone Xiaohongshu workflow: search notes/users, extract text/images/comments, read user/homefeed/message/creator data, convert no-watermark URLs, and export Excel/media."
