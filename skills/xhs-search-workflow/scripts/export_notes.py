@@ -35,6 +35,20 @@ def pick_image_url(image_obj: Dict[str, Any]) -> str:
     return ""
 
 
+def pick_video_url(card: Dict[str, Any]) -> str:
+    video = card.get("video") or {}
+    streams = (((video.get("media") or {}).get("stream") or {}).get("h264") or [])
+    if streams:
+        for key in ("master_url", "url"):
+            value = streams[0].get(key)
+            if value:
+                return value
+    origin_key = ((video.get("consumer") or {}).get("origin_video_key") or "")
+    if origin_key:
+        return f"https://sns-video-bd.xhscdn.com/{origin_key}"
+    return ""
+
+
 def normalize_note_item(item: Dict[str, Any], note_url: str) -> Dict[str, Any]:
     card = item.get("note_card", {})
     note_type = "图集" if card.get("type") == "normal" else "视频"
@@ -42,10 +56,7 @@ def normalize_note_item(item: Dict[str, Any], note_url: str) -> Dict[str, Any]:
     note_id = item.get("id", "")
     image_list = [u for u in (pick_image_url(x) for x in card.get("image_list", [])) if u]
     video_cover = image_list[0] if note_type == "视频" and image_list else ""
-    video_addr = ""
-    origin_key = (((card.get("video") or {}).get("consumer") or {}).get("origin_video_key") or "")
-    if origin_key:
-        video_addr = f"https://sns-video-bd.xhscdn.com/{origin_key}"
+    video_addr = pick_video_url(card) if note_type == "视频" else ""
 
     return {
         "note_id": note_id,
