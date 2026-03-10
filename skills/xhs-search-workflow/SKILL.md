@@ -1,6 +1,6 @@
 ---
 name: xhs-search-workflow
-description: 使用内置 JS 签名与 Cookie 鉴权运行独立的小红书数据工作流，适用于搜索、提取、导出和创作者数据采集；当需要脱离原仓库稳定复用 Spider_XHS 核心能力时使用。 Use this skill to run a standalone Xiaohongshu workflow with bundled JS signing assets and cookie auth for search, extraction, export, and creator data collection when you need Spider_XHS-derived capabilities without depending on the original repository.
+description: 使用内置 JS 签名与 Cookie 鉴权运行独立的小红书数据工作流，适用于搜索、提取、导出和创作者数据采集；当需要脱离原仓库稳定复用 Spider_XHS 核心能力，或用户明确要求下载小红书图片、视频、媒体文件并应默认走无水印下载链路时使用。 Use this skill to run a standalone Xiaohongshu workflow with bundled JS signing assets and cookie auth for search, extraction, export, and creator data collection when you need Spider_XHS-derived capabilities without depending on the original repository, especially when the user asks to download XHS images, videos, or media files and the workflow should default to no-watermark downloads.
 ---
 
 # 小红书工作流技能说明 / XHS Workflow Skill Guide
@@ -56,11 +56,15 @@ skills/xhs-search-workflow/.venv/bin/python \
 
 ### 脚本清单
 - `scripts/search_notes.py`：笔记搜索（支持筛选）
-- `scripts/fetch_note_texts.py`：提取标题/正文/图片链接，可选下载图片
+- `scripts/fetch_note_texts.py`：提取标题/正文/无水印图片链接，可选下载无水印图片
 - `scripts/xhs_full_cli.py`：统一入口（用户/评论/消息/首页/创作者/无水印）
-- `scripts/export_notes.py`：导出 Excel 与媒体文件
+- `scripts/export_notes.py`：导出 Excel 与媒体文件，媒体下载默认优先无水印
 
 ### 常用命令
+
+媒体下载规则：
+- 只要用户明确说“下载图片”“下载视频”“下载媒体”，默认使用无水印链接。
+- 只有用户明确要求保留原始链接或有水印版本时，才使用原始媒体地址。
 
 1. 搜索笔记
 ```bash
@@ -69,7 +73,7 @@ skills/xhs-search-workflow/.venv/bin/python \
   --num 10 --sort 0 --note-type 0 --no-env-proxy --json
 ```
 
-2. 提取笔记正文与图片链接
+2. 提取笔记正文与无水印图片链接
 ```bash
 skills/xhs-search-workflow/.venv/bin/python \
   skills/xhs-search-workflow/scripts/fetch_note_texts.py \
@@ -78,7 +82,7 @@ skills/xhs-search-workflow/.venv/bin/python \
   --out note_content.json
 ```
 
-3. 提取同时下载图片
+3. 提取同时下载无水印图片
 ```bash
 skills/xhs-search-workflow/.venv/bin/python \
   skills/xhs-search-workflow/scripts/fetch_note_texts.py \
@@ -95,7 +99,7 @@ skills/xhs-search-workflow/.venv/bin/python \
   --env-file .env --no-env-proxy search-users --query "汇丰银行" --num 10
 ```
 
-5. 导出 Excel/媒体
+5. 导出 Excel/媒体（图片与视频下载默认优先无水印）
 ```bash
 skills/xhs-search-workflow/.venv/bin/python \
   skills/xhs-search-workflow/scripts/export_notes.py \
@@ -128,6 +132,11 @@ skills/xhs-search-workflow/.venv/bin/python \
 - 覆盖范围：搜索、详情、评论、用户、消息、首页推荐、创作者作品、无水印链接转换、导出。
 - 当前边界：以 Cookie 鉴权为主，不内置交互式登录流程。
 - 设计优点：脚本职责清晰、统一入口完整、离线资源齐全、迁移成本低。
+
+### 媒体下载默认策略
+- 用户一旦提出下载图片、视频或媒体包，优先使用无水印链接。
+- `fetch_note_texts.py --download-images` 会先把图片链接转换为无水印地址再落盘。
+- `export_notes.py --save media|media-image|media-video|all` 会优先使用无水印图片和无水印视频链接。
 
 ### 离线与可移植设计
 - 签名 JS 打包在 `assets/js/`。
@@ -216,11 +225,15 @@ Security notes:
 
 ### Script List
 - `scripts/search_notes.py`: note search with filters
-- `scripts/fetch_note_texts.py`: extract title/text/image URLs, optional image download
+- `scripts/fetch_note_texts.py`: extract title/text/no-watermark image URLs and optionally download no-watermark images
 - `scripts/xhs_full_cli.py`: unified entry for user/comment/message/homefeed/creator/no-water APIs
-- `scripts/export_notes.py`: export note data to Excel and/or media files
+- `scripts/export_notes.py`: export note data to Excel and/or media files, preferring no-watermark downloads for media
 
 ### Typical Commands
+
+Media download rule:
+- If the user asks to download images, videos, or media, default to no-watermark URLs.
+- Only use the original media URLs when the user explicitly asks for the original or watermarked version.
 
 1. Search notes
 ```bash
@@ -229,7 +242,7 @@ skills/xhs-search-workflow/.venv/bin/python \
   --num 10 --sort 0 --note-type 0 --no-env-proxy --json
 ```
 
-2. Extract note text and image URLs
+2. Extract note text and no-watermark image URLs
 ```bash
 skills/xhs-search-workflow/.venv/bin/python \
   skills/xhs-search-workflow/scripts/fetch_note_texts.py \
@@ -238,7 +251,7 @@ skills/xhs-search-workflow/.venv/bin/python \
   --out note_content.json
 ```
 
-3. Download images while extracting
+3. Download no-watermark images while extracting
 ```bash
 skills/xhs-search-workflow/.venv/bin/python \
   skills/xhs-search-workflow/scripts/fetch_note_texts.py \
@@ -255,7 +268,7 @@ skills/xhs-search-workflow/.venv/bin/python \
   --env-file .env --no-env-proxy search-users --query "HSBC" --num 10
 ```
 
-5. Export Excel/media
+5. Export Excel/media with no-watermark media downloads by default
 ```bash
 skills/xhs-search-workflow/.venv/bin/python \
   skills/xhs-search-workflow/scripts/export_notes.py \
@@ -288,6 +301,11 @@ skills/xhs-search-workflow/.venv/bin/python \
 - Coverage: search, note detail, comments, users, messages, homefeed, creator posts, no-watermark conversion, export.
 - Boundary: cookie-based auth is the default; interactive login flow is not included.
 - Strengths: clear script responsibilities, complete unified CLI, bundled offline assets, and portable deployment.
+
+### Default Media Download Strategy
+- Default to no-watermark URLs when the user asks to download note images, videos, or media bundles.
+- `fetch_note_texts.py --download-images` resolves image URLs to no-watermark variants before saving files.
+- `export_notes.py --save media|media-image|media-video|all` prefers no-watermark image and video URLs during media download.
 
 ### Offline and Portability
 - Signing JS is bundled in `assets/js/`.

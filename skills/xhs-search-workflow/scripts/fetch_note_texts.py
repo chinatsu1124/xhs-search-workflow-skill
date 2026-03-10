@@ -8,7 +8,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 from typing import List, Dict, Any
 
-from xhs_client import load_cookies, get_note_info
+from xhs_client import get_note_info, get_note_no_water_img, load_cookies
 import requests
 
 
@@ -42,12 +42,17 @@ def pick_image_url(image_obj: Dict[str, Any]) -> str:
     return ""
 
 
+def to_no_watermark_image_url(url: str) -> str:
+    ok, _, converted = get_note_no_water_img(url)
+    return converted if ok and converted else url
+
+
 def collect_image_urls(note_card: Dict[str, Any]) -> List[str]:
     urls: List[str] = []
     for image_obj in note_card.get("image_list", []) or []:
         u = pick_image_url(image_obj)
         if u:
-            urls.append(u)
+            urls.append(to_no_watermark_image_url(u))
     return urls
 
 
@@ -79,7 +84,7 @@ def main() -> int:
     parser.add_argument("--cookie", default="", help="Cookie string")
     parser.add_argument("--env-file", default="", help="Path to .env containing COOKIES")
     parser.add_argument("--no-env-proxy", action="store_true", help="Disable proxy env vars for this run")
-    parser.add_argument("--download-images", action="store_true", help="Download image files for each note")
+    parser.add_argument("--download-images", action="store_true", help="Download no-watermark image files for each note")
     parser.add_argument("--image-dir", default="xhs_images", help="Directory to save downloaded images")
     parser.add_argument("--timeout", type=int, default=30, help="Timeout seconds per note/image request")
     parser.add_argument("--retries", type=int, default=2, help="Retry times per note on failure")

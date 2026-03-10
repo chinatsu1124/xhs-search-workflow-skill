@@ -11,6 +11,7 @@
 - 用户信息、评论、消息中心、首页推荐数据读取
 - 创作者已发布作品数据读取
 - 无水印图片/视频链接处理
+- 下载图片、视频、媒体时默认优先走无水印链路
 - Excel 导出
 
 ## 仓库结构
@@ -81,7 +82,7 @@ skills/xhs-search-workflow/.venv/bin/python \
   --num 10 --sort 0 --note-type 0 --no-env-proxy --json
 ```
 
-2. 提取笔记正文与图片链接
+2. 提取笔记正文与无水印图片链接
 
 ```bash
 skills/xhs-search-workflow/.venv/bin/python \
@@ -99,7 +100,7 @@ skills/xhs-search-workflow/.venv/bin/python \
   --env-file .env --no-env-proxy search-users --query "汇丰银行" --num 10
 ```
 
-4. 导出 Excel + 媒体
+4. 导出 Excel + 媒体（默认优先下载无水印图片/视频）
 
 ```bash
 skills/xhs-search-workflow/.venv/bin/python \

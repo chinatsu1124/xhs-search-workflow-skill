@@ -10,7 +10,13 @@ from typing import Any, Dict, List
 import openpyxl
 import requests
 
-from xhs_client import get_note_info, load_cookies, search_some_note
+from xhs_client import (
+    get_note_info,
+    get_note_no_water_img,
+    get_note_no_water_video,
+    load_cookies,
+    search_some_note,
+)
 
 
 def drop_proxy_env() -> None:
@@ -35,6 +41,13 @@ def pick_image_url(image_obj: Dict[str, Any]) -> str:
     return ""
 
 
+def to_no_watermark_image_url(url: str) -> str:
+    if not url:
+        return ""
+    ok, _, converted = get_note_no_water_img(url)
+    return converted if ok and converted else url
+
+
 def pick_video_url(card: Dict[str, Any]) -> str:
     video = card.get("video") or {}
     streams = (((video.get("media") or {}).get("stream") or {}).get("h264") or [])
@@ -49,14 +62,28 @@ def pick_video_url(card: Dict[str, Any]) -> str:
     return ""
 
 
+def pick_no_watermark_video_url(note_id: str, fallback_url: str) -> str:
+    if note_id:
+        ok, _, converted = get_note_no_water_video(note_id)
+        if ok and converted:
+            return converted
+    return fallback_url
+
+
 def normalize_note_item(item: Dict[str, Any], note_url: str) -> Dict[str, Any]:
     card = item.get("note_card", {})
     note_type = "图集" if card.get("type") == "normal" else "视频"
     user = card.get("user", {})
     note_id = item.get("id", "")
-    image_list = [u for u in (pick_image_url(x) for x in card.get("image_list", [])) if u]
+    image_list = [
+        to_no_watermark_image_url(u)
+        for u in (pick_image_url(x) for x in card.get("image_list", []))
+        if u
+    ]
     video_cover = image_list[0] if note_type == "视频" and image_list else ""
-    video_addr = pick_video_url(card) if note_type == "视频" else ""
+    video_addr = ""
+    if note_type == "视频":
+        video_addr = pick_no_watermark_video_url(note_id, pick_video_url(card))
 
     return {
         "note_id": note_id,
@@ -194,7 +221,7 @@ def main() -> int:
     parser.add_argument("--url-file", default="", help="Text file with note URLs")
     parser.add_argument("--query", default="", help="Search query to discover note URLs before export")
     parser.add_argument("--num", type=int, default=10, help="When using --query, number of notes")
-    parser.add_argument("--save", default="all", choices=["all", "media", "media-video", "media-image", "excel"], help="Export mode")
+    parser.add_argument("--save", default="all", choices=["all", "media", "media-video", "media-image", "excel"], help="Export mode; media downloads use no-watermark URLs when available")
     parser.add_argument("--excel", default="xhs_notes.xlsx", help="Excel output path")
     parser.add_argument("--media-dir", default="xhs_media", help="Media output root")
     parser.add_argument("--cookie", default="", help="Cookie string")
