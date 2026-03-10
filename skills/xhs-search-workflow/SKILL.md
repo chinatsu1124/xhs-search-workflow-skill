@@ -32,29 +32,41 @@ skills/xhs-search-workflow/scripts/setup_env.sh
 - 或先运行 `xhs_full_cli.py login` 进行二维码登录并保存本地会话
 - 如宿主机代理变量导致失败，添加 `--no-env-proxy`
 
-### 首次使用：如何获取 Cookie
-1. 在浏览器登录小红书网页端（确保是已登录状态）。
-2. 打开开发者工具 `Network`，筛选 `Fetch/XHR`，刷新页面后任选一条业务请求。
-3. 优先选择 `edith.xiaohongshu.com` 的请求并复制 `Request Headers` 里的完整 `cookie` 字段。
-4. 其他域名请求也可用，但需满足：
-- 请求头里包含完整 Cookie。
-- 至少有 `a1`、`web_session`、`gid`。
-5. 将 Cookie 写入 `.env`：
-```env
-COOKIES="完整cookie字符串"
-```
-6. 也可以直接运行二维码登录：
+### 首次使用：Cookie 与二维码登录
+现在的登录能力分成两类：
+
+1. **直接使用已有登录 Cookie**
+   - 适合已经在浏览器网页端登录过的环境。
+   - `COOKIES` 建议至少包含 `a1`、`web_session`、`gid`。
+
+2. **纯请求二维码登录（推荐）**
+   - 可以在新环境下直接执行：
 ```bash
 skills/xhs-search-workflow/.venv/bin/python \
   skills/xhs-search-workflow/scripts/xhs_full_cli.py login
 ```
-7. 首次验证建议先运行：
+   - skill 会先本地生成匿名态 cookie（如 `a1` / `webId` / `loadts` / `xsecappid`），然后走纯请求二维码登录：
+     - `qrcode/create`
+     - `qrcode/userinfo`
+     - `qrcode/status`
+     - `user/me`
+   - 登录成功后会把会话保存到本地 `cookies.json`。
+
+### 如需手动准备 Cookie
+1. 在浏览器登录小红书网页端（确保是已登录状态）。
+2. 打开开发者工具 `Network`，筛选 `Fetch/XHR`，刷新页面后任选一条业务请求。
+3. 优先选择 `edith.xiaohongshu.com` 的请求并复制 `Request Headers` 里的完整 `cookie` 字段。
+4. 将 Cookie 写入 `.env`：
+```env
+COOKIES="完整cookie字符串"
+```
+5. 首次验证建议先运行：
 ```bash
 skills/xhs-search-workflow/.venv/bin/python \
   skills/xhs-search-workflow/scripts/xhs_full_cli.py \
   --env-file .env --no-env-proxy homefeed-channels
 ```
-8. 若返回“登录已过期”或“无登录信息”，重新登录网页并重新抓取 Cookie，或重新执行 `login`。
+6. 若返回“登录已过期”或“无登录信息”，重新登录网页并重新抓取 Cookie，或重新执行 `login`。
 
 安全建议：
 - 不要在聊天、截图、Git 仓库中泄露 Cookie。
@@ -217,29 +229,41 @@ It creates `skills/xhs-search-workflow/.venv` and installs Python dependencies.
 - Or run `xhs_full_cli.py login` to create a saved local session with QR login
 - Add `--no-env-proxy` when host proxy variables break requests.
 
-### First Use: How to Capture Cookie
-1. Log in to Xiaohongshu Web in your browser.
-2. Open devtools `Network`, filter `Fetch/XHR`, refresh, and pick a business API request.
-3. Prefer a request to `edith.xiaohongshu.com`, then copy the full `cookie` value from `Request Headers`.
-4. Other request domains can also work if:
-- The request contains a full cookie header.
-- It includes at least `a1`, `web_session`, and `gid`.
-5. Save cookie in `.env`:
-```env
-COOKIES="your_full_cookie_string"
-```
-6. You can also start QR login directly:
+### First Use: Cookie and QR Login
+There are now two supported auth modes:
+
+1. **Use an existing logged-in cookie**
+   - Best when you already have a valid web session from a browser.
+   - `COOKIES` should ideally contain at least `a1`, `web_session`, and `gid`.
+
+2. **Pure-request QR login (recommended)**
+   - You can run this directly on a fresh environment:
 ```bash
 skills/xhs-search-workflow/.venv/bin/python \
   skills/xhs-search-workflow/scripts/xhs_full_cli.py login
 ```
-7. First-run verification:
+   - The skill first bootstraps anonymous cookies locally (`a1`, `webId`, `loadts`, `xsecappid`), then completes the QR login flow via requests only:
+     - `qrcode/create`
+     - `qrcode/userinfo`
+     - `qrcode/status`
+     - `user/me`
+   - On success it saves the local session to `cookies.json`.
+
+### If you still want to capture cookies manually
+1. Log in to Xiaohongshu Web in your browser.
+2. Open devtools `Network`, filter `Fetch/XHR`, refresh, and pick a business API request.
+3. Prefer a request to `edith.xiaohongshu.com`, then copy the full `cookie` value from `Request Headers`.
+4. Save cookie in `.env`:
+```env
+COOKIES="your_full_cookie_string"
+```
+5. First-run verification:
 ```bash
 skills/xhs-search-workflow/.venv/bin/python \
   skills/xhs-search-workflow/scripts/xhs_full_cli.py \
   --env-file .env --no-env-proxy homefeed-channels
 ```
-8. If response shows `登录已过期` / `无登录信息`, capture cookies again or rerun `login`.
+6. If response shows `登录已过期` / `无登录信息`, capture cookies again or rerun `login`.
 
 Security notes:
 - Never paste cookie in chats, screenshots, or Git repositories.

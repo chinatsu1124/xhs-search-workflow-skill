@@ -152,7 +152,7 @@ def main() -> int:
             data["cookie_file"] = str(COOKIE_FILE)
             return output_result(True, "login successful", data, out_file=args.out)
 
-        cookie_str = qrcode_login()
+        cookie_str = qrcode_login(cookie_arg=args.cookie, env_file=args.env_file)
         ok, msg, data = verify_session(cookie_str)
         if not ok:
             clear_cookies()

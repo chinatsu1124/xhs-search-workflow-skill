@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import hashlib
 import json
 import math
 import os
@@ -6,7 +7,9 @@ import random
 import re
 import shutil
 import sys
+import time
 import urllib.parse
+import zlib
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
@@ -72,6 +75,44 @@ _JS_XRAY = _compile_with_cwd(JS_DIR / "xhs_xray.js")
 def trans_cookies(cookies_str: str) -> Dict[str, str]:
     sep = "; " if "; " in cookies_str else ";"
     return {i.split("=")[0]: "=".join(i.split("=")[1:]) for i in cookies_str.split(sep) if i.strip() and "=" in i}
+
+
+def gen_random_string(length: int) -> str:
+    charset = "abcdefghijklmnopqrstuvwxyz1234567890"
+    return "".join(charset[math.floor(36 * random.random())] for _ in range(length))
+
+
+def get_platform_code(platform: str) -> str:
+    mapping = {
+        "Windows": "0",
+        "iOS": "1",
+        "Android": "2",
+        "Mac OS": "3",
+        "Linux": "4",
+    }
+    return mapping.get(platform, "5")
+
+
+def generate_a1(platform: str = "Linux") -> str:
+    local_id_secret_version = "0"
+    prefix = f"{int(time.time() * 1000):x}{gen_random_string(30)}{get_platform_code(platform)}{local_id_secret_version}000"
+    crc = zlib.crc32(prefix.encode("utf-8")) & 0xFFFFFFFF
+    return f"{prefix}{crc}"[:52]
+
+
+def generate_web_id(a1: str) -> str:
+    return hashlib.md5(a1.encode("utf-8")).hexdigest()
+
+
+def bootstrap_anon_cookie_string(existing_cookie_str: str = "", platform: str = "Linux") -> str:
+    cookies = trans_cookies(existing_cookie_str) if existing_cookie_str else {}
+    if not cookies.get("a1") or len(cookies.get("a1", "")) != 52:
+        cookies["a1"] = generate_a1(platform)
+    cookies["webId"] = generate_web_id(cookies["a1"])
+    cookies.setdefault("xsecappid", "xhs-pc-web")
+    cookies["loadts"] = str(int(time.time() * 1000))
+    cookies.setdefault("webBuild", "5.14.5")
+    return "; ".join(f"{k}={v}" for k, v in cookies.items())
 
 
 def load_cookies(cookie_arg: str = "", env_file: str = "") -> str:
@@ -146,7 +187,8 @@ def generate_headers(a1: str, api: str, data: Any = "", method: str = "POST") ->
 
 
 def generate_request_params(cookies_str: str, api: str, data: Any = "", method: str = "POST") -> Tuple[Dict[str, str], Dict[str, str], str]:
-    cookies = trans_cookies(cookies_str)
+    cookie_str = bootstrap_anon_cookie_string(cookies_str) if (not cookies_str or "a1=" not in cookies_str) else cookies_str
+    cookies = trans_cookies(cookie_str)
     a1 = cookies.get("a1", "")
     if not a1:
         raise ValueError("cookie missing 'a1'")

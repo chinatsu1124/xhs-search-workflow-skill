@@ -8,7 +8,8 @@
 - 笔记搜索（含筛选参数）
 - 笔记正文与图片链接提取
 - 图片下载与媒体导出
-- 二维码登录与本地会话保存
+- 纯请求二维码登录与本地会话保存
+- 匿名态 cookie 本地 bootstrap（自动生成 `a1` / `webId` 等基础参数）
 - 用户信息、评论、消息中心、首页推荐数据读取
 - 创作者已发布作品数据读取
 - 无水印图片/视频链接处理
@@ -43,7 +44,7 @@ cd xhs-search-workflow-skill
 skills/xhs-search-workflow/scripts/setup_env.sh
 ```
 
-3. 准备 Cookie（见下文“首次使用：获取 Cookie”）
+3. 可直接运行二维码登录（新环境无需手动准备 `a1`，Skill 会自动 bootstrap 匿名态 Cookie），或按下文手动准备 Cookie
 
 4. 先跑一个最小验证命令
 
@@ -60,7 +61,13 @@ skills/xhs-search-workflow/.venv/bin/python \
   skills/xhs-search-workflow/scripts/xhs_full_cli.py login
 ```
 
-## 首次使用：获取 Cookie
+说明：
+- 当前登录实现为 **纯请求二维码登录**，不是浏览器模拟整链登录。
+- 首次在新环境执行 `login` 时，Skill 会先本地生成匿名态 Cookie（包括 `a1`、`webId`、`loadts`、`xsecappid` 等），然后再调用二维码登录相关接口。
+
+## 首次使用：获取 Cookie（可选）
+
+如果你已经有浏览器里的有效登录 Cookie，也可以直接使用：
 
 1. 在浏览器登录小红书网页端。
 2. 打开开发者工具 `Network`，筛选 `Fetch/XHR`。
@@ -74,7 +81,7 @@ COOKIES="完整cookie字符串"
 
 说明：
 - 其他域名请求也可用，但建议至少包含 `a1`、`web_session`、`gid`。
-- 若返回“登录已过期”或“无登录信息”，重新登录并重新抓取 Cookie。
+- 若返回“登录已过期”或“无登录信息”，重新登录并重新抓取 Cookie，或重新执行 `login`。
 
 安全建议：
 - 不要在聊天、截图或 Git 仓库里泄露 Cookie。

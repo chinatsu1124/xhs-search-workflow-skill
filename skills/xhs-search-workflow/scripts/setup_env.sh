@@ -13,7 +13,7 @@ echo "[1/3] create skill venv"
 uv venv .venv
 
 echo "[2/3] install python deps"
-uv pip install --python .venv/bin/python requests pyexecjs python-dotenv openpyxl "camoufox[geoip]" qrcode
+uv pip install --python .venv/bin/python requests pyexecjs python-dotenv openpyxl qrcode
 
 echo "[3/3] verify bundled crypto-js"
 if [[ -f "$VENDOR_CRYPTO" ]]; then
