@@ -1,6 +1,6 @@
 ---
 name: xhs-search-workflow
-description: 使用内置 JS 签名与 Cookie 鉴权运行独立的小红书数据工作流，适用于搜索、提取、导出和创作者数据采集；当需要脱离原仓库稳定复用 Spider_XHS 核心能力，或用户明确要求下载小红书图片、视频、媒体文件并应默认走无水印下载链路时使用。 Use this skill to run a standalone Xiaohongshu workflow with bundled JS signing assets and cookie auth for search, extraction, export, and creator data collection when you need Spider_XHS-derived capabilities without depending on the original repository, especially when the user asks to download XHS images, videos, or media files and the workflow should default to no-watermark downloads.
+description: 使用内置 JS 签名与 Cookie/二维码登录运行独立的小红书数据工作流，适用于登录、搜索、提取、导出和创作者数据采集；当需要脱离原仓库稳定复用 Spider_XHS 核心能力，或用户明确要求下载小红书图片、视频、媒体文件并应默认走无水印下载链路时使用。 Use this skill to run a standalone Xiaohongshu workflow with bundled JS signing assets and cookie or QR login for authentication, plus search, extraction, export, and creator data collection when you need Spider_XHS-derived capabilities without depending on the original repository, especially when the user asks to download XHS images, videos, or media files and the workflow should default to no-watermark downloads.
 ---
 
 # 小红书工作流技能说明 / XHS Workflow Skill Guide
@@ -29,6 +29,7 @@ skills/xhs-search-workflow/scripts/setup_env.sh
 ### 鉴权输入
 - `--cookie "..."`
 - 或 `--env-file /path/to/.env`（其中 `COOKIES="..."`）
+- 或先运行 `xhs_full_cli.py login` 进行二维码登录并保存本地会话
 - 如宿主机代理变量导致失败，添加 `--no-env-proxy`
 
 ### 首次使用：如何获取 Cookie
@@ -42,13 +43,18 @@ skills/xhs-search-workflow/scripts/setup_env.sh
 ```env
 COOKIES="完整cookie字符串"
 ```
-6. 首次验证建议先运行：
+6. 也可以直接运行二维码登录：
+```bash
+skills/xhs-search-workflow/.venv/bin/python \
+  skills/xhs-search-workflow/scripts/xhs_full_cli.py login
+```
+7. 首次验证建议先运行：
 ```bash
 skills/xhs-search-workflow/.venv/bin/python \
   skills/xhs-search-workflow/scripts/xhs_full_cli.py \
   --env-file .env --no-env-proxy homefeed-channels
 ```
-7. 若返回“登录已过期”或“无登录信息”，重新登录网页并重新抓取 Cookie。
+8. 若返回“登录已过期”或“无登录信息”，重新登录网页并重新抓取 Cookie，或重新执行 `login`。
 
 安全建议：
 - 不要在聊天、截图、Git 仓库中泄露 Cookie。
@@ -57,6 +63,7 @@ skills/xhs-search-workflow/.venv/bin/python \
 ### 脚本清单
 - `scripts/search_notes.py`：笔记搜索（支持筛选）
 - `scripts/fetch_note_texts.py`：提取标题/正文/无水印图片链接，可选下载无水印图片
+- `scripts/xhs_auth.py`：二维码登录、保存/清理本地 cookie 会话
 - `scripts/xhs_full_cli.py`：统一入口（用户/评论/消息/首页/创作者/无水印）
 - `scripts/export_notes.py`：导出 Excel 与媒体文件，媒体下载默认优先无水印
 
@@ -65,6 +72,12 @@ skills/xhs-search-workflow/.venv/bin/python \
 媒体下载规则：
 - 只要用户明确说“下载图片”“下载视频”“下载媒体”，默认使用无水印链接。
 - 只有用户明确要求保留原始链接或有水印版本时，才使用原始媒体地址。
+
+0. 二维码登录并保存会话
+```bash
+skills/xhs-search-workflow/.venv/bin/python \
+  skills/xhs-search-workflow/scripts/xhs_full_cli.py login
+```
 
 1. 搜索笔记
 ```bash
@@ -108,6 +121,9 @@ skills/xhs-search-workflow/.venv/bin/python \
 ```
 
 ### `xhs_full_cli.py` 子命令
+- `login`
+- `logout`
+- `status`
 - `user-info --user-id <id>`
 - `user-self-info`
 - `user-self-info2`
@@ -130,7 +146,7 @@ skills/xhs-search-workflow/.venv/bin/python \
 
 ### 功能范围与边界
 - 覆盖范围：搜索、详情、评论、用户、消息、首页推荐、创作者作品、无水印链接转换、导出。
-- 当前边界：以 Cookie 鉴权为主，不内置交互式登录流程。
+- 当前边界：支持二维码登录与 Cookie 鉴权；不内置短信/验证码等其他登录流程。
 - 设计优点：脚本职责清晰、统一入口完整、离线资源齐全、迁移成本低。
 
 ### 媒体下载默认策略
@@ -198,6 +214,7 @@ It creates `skills/xhs-search-workflow/.venv` and installs Python dependencies.
 ### Auth Input
 - `--cookie "..."`
 - Or `--env-file /path/to/.env` with `COOKIES="..."`
+- Or run `xhs_full_cli.py login` to create a saved local session with QR login
 - Add `--no-env-proxy` when host proxy variables break requests.
 
 ### First Use: How to Capture Cookie
@@ -211,13 +228,18 @@ It creates `skills/xhs-search-workflow/.venv` and installs Python dependencies.
 ```env
 COOKIES="your_full_cookie_string"
 ```
-6. First-run verification:
+6. You can also start QR login directly:
+```bash
+skills/xhs-search-workflow/.venv/bin/python \
+  skills/xhs-search-workflow/scripts/xhs_full_cli.py login
+```
+7. First-run verification:
 ```bash
 skills/xhs-search-workflow/.venv/bin/python \
   skills/xhs-search-workflow/scripts/xhs_full_cli.py \
   --env-file .env --no-env-proxy homefeed-channels
 ```
-7. If response shows `登录已过期` / `无登录信息`, re-login in browser and capture cookie again.
+8. If response shows `登录已过期` / `无登录信息`, capture cookies again or rerun `login`.
 
 Security notes:
 - Never paste cookie in chats, screenshots, or Git repositories.
@@ -226,6 +248,7 @@ Security notes:
 ### Script List
 - `scripts/search_notes.py`: note search with filters
 - `scripts/fetch_note_texts.py`: extract title/text/no-watermark image URLs and optionally download no-watermark images
+- `scripts/xhs_auth.py`: QR login and local cookie session persistence
 - `scripts/xhs_full_cli.py`: unified entry for user/comment/message/homefeed/creator/no-water APIs
 - `scripts/export_notes.py`: export note data to Excel and/or media files, preferring no-watermark downloads for media
 
@@ -234,6 +257,12 @@ Security notes:
 Media download rule:
 - If the user asks to download images, videos, or media, default to no-watermark URLs.
 - Only use the original media URLs when the user explicitly asks for the original or watermarked version.
+
+0. Login with QR code and save a local session
+```bash
+skills/xhs-search-workflow/.venv/bin/python \
+  skills/xhs-search-workflow/scripts/xhs_full_cli.py login
+```
 
 1. Search notes
 ```bash
@@ -277,6 +306,9 @@ skills/xhs-search-workflow/.venv/bin/python \
 ```
 
 ### `xhs_full_cli.py` Subcommands
+- `login`
+- `logout`
+- `status`
 - `user-info --user-id <id>`
 - `user-self-info`
 - `user-self-info2`
@@ -299,7 +331,7 @@ skills/xhs-search-workflow/.venv/bin/python \
 
 ### Scope and Boundaries
 - Coverage: search, note detail, comments, users, messages, homefeed, creator posts, no-watermark conversion, export.
-- Boundary: cookie-based auth is the default; interactive login flow is not included.
+- Boundary: QR login and cookie-based auth are included; other interactive login flows are not included.
 - Strengths: clear script responsibilities, complete unified CLI, bundled offline assets, and portable deployment.
 
 ### Default Media Download Strategy

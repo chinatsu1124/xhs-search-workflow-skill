@@ -4,6 +4,15 @@ import json
 import os
 from typing import Any, Dict, Tuple
 
+from xhs_auth import (
+    COOKIE_FILE,
+    clear_cookies,
+    cookie_str_to_dict,
+    get_saved_cookie_string,
+    has_required_cookies,
+    qrcode_login,
+    save_cookies,
+)
 from xhs_client import (
     creator_get_all_publish_note_info,
     get_all_likesAndcollects,
@@ -43,6 +52,22 @@ def output_result(ok: bool, msg: str, data: Any, out_file: str = "") -> int:
     return 0 if ok else 1
 
 
+def verify_session(cookies: str) -> Tuple[bool, str, Dict[str, Any]]:
+    ok, msg, data = get_user_self_info2(cookies)
+    if not ok:
+        return False, msg or "failed to fetch self info", data if isinstance(data, dict) else {}
+    probe_ok, probe_msg, probe_data = get_homefeed_all_channel(cookies)
+    if not probe_ok:
+        return False, probe_msg or "failed to access homefeed", {
+            "self_info": data,
+            "probe": probe_data,
+        }
+    return True, "session verified", {
+        "self_info": data,
+        "probe": probe_data,
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Unified CLI for full xhs-search-workflow skill")
     parser.add_argument("--cookie", default="", help="Cookie string")
@@ -51,6 +76,12 @@ def main() -> int:
     parser.add_argument("--out", default="", help="Write JSON output to file")
 
     sub = parser.add_subparsers(dest="cmd", required=True)
+
+    p_login = sub.add_parser("login", help="Login with QR code and save cookies locally")
+    p_login.add_argument("--cookie", default="", help="Manually save a cookie string instead of starting QR login")
+
+    sub.add_parser("logout", help="Clear saved cookies")
+    sub.add_parser("status", help="Check saved login status")
 
     p_user_info = sub.add_parser("user-info", help="Get other user info")
     p_user_info.add_argument("--user-id", required=True)
@@ -107,6 +138,39 @@ def main() -> int:
     ok: bool
     msg: str
     data: Any
+
+    if cmd == "login":
+        if args.cookie:
+            parsed = cookie_str_to_dict(args.cookie)
+            if not has_required_cookies(parsed):
+                return output_result(False, "cookie must contain 'a1' and 'web_session'", {})
+            save_cookies(args.cookie)
+            ok, msg, data = verify_session(args.cookie)
+            if not ok:
+                clear_cookies()
+                return output_result(False, f"cookie saved but verification failed: {msg}", data)
+            data["cookie_file"] = str(COOKIE_FILE)
+            return output_result(True, "login successful", data, out_file=args.out)
+
+        cookie_str = qrcode_login()
+        ok, msg, data = verify_session(cookie_str)
+        if not ok:
+            clear_cookies()
+            return output_result(False, f"qr login succeeded but verification failed: {msg}", data)
+        data["cookie_file"] = str(COOKIE_FILE)
+        return output_result(True, "login successful", data, out_file=args.out)
+
+    if cmd == "logout":
+        removed = clear_cookies()
+        return output_result(True, "saved cookies cleared" if removed else "no saved cookies", {"cookie_file": str(COOKIE_FILE)})
+
+    if cmd == "status":
+        saved = get_saved_cookie_string()
+        if not saved:
+            return output_result(False, "not logged in", {"cookie_file": str(COOKIE_FILE)})
+        ok, msg, data = verify_session(saved)
+        data["cookie_file"] = str(COOKIE_FILE)
+        return output_result(ok, msg if ok else f"saved cookies exist but are invalid: {msg}", data, out_file=args.out)
 
     if cmd in ("no-water-video", "no-water-img"):
         cookies = ""

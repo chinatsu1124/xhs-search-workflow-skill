@@ -8,6 +8,7 @@
 - 笔记搜索（含筛选参数）
 - 笔记正文与图片链接提取
 - 图片下载与媒体导出
+- 二维码登录与本地会话保存
 - 用户信息、评论、消息中心、首页推荐数据读取
 - 创作者已发布作品数据读取
 - 无水印图片/视频链接处理
@@ -50,6 +51,13 @@ skills/xhs-search-workflow/scripts/setup_env.sh
 skills/xhs-search-workflow/.venv/bin/python \
   skills/xhs-search-workflow/scripts/xhs_full_cli.py \
   --env-file .env --no-env-proxy homefeed-channels
+```
+
+也可以直接二维码登录并保存本地会话：
+
+```bash
+skills/xhs-search-workflow/.venv/bin/python \
+  skills/xhs-search-workflow/scripts/xhs_full_cli.py login
 ```
 
 ## 首次使用：获取 Cookie
@@ -107,6 +115,16 @@ skills/xhs-search-workflow/.venv/bin/python \
   skills/xhs-search-workflow/scripts/export_notes.py \
   --query "汇丰银行" --num 10 --save all \
   --excel xhs_notes.xlsx --media-dir xhs_media --no-env-proxy
+```
+
+5. 查看/清理已保存登录态
+
+```bash
+skills/xhs-search-workflow/.venv/bin/python \
+  skills/xhs-search-workflow/scripts/xhs_full_cli.py status
+
+skills/xhs-search-workflow/.venv/bin/python \
+  skills/xhs-search-workflow/scripts/xhs_full_cli.py logout
 ```
 
 ## 校验

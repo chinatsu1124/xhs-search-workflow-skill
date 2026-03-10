@@ -13,6 +13,7 @@ from typing import Any, Dict, List, Tuple
 import execjs
 import requests
 from dotenv import load_dotenv
+from xhs_auth import cookie_str_to_dict, get_saved_cookie_string, has_required_cookies
 
 BASE_URL = "https://edith.xiaohongshu.com"
 SKILL_DIR = Path(__file__).resolve().parents[1]
@@ -75,6 +76,9 @@ def trans_cookies(cookies_str: str) -> Dict[str, str]:
 
 def load_cookies(cookie_arg: str = "", env_file: str = "") -> str:
     if cookie_arg:
+        parsed = cookie_str_to_dict(cookie_arg)
+        if not has_required_cookies(parsed):
+            raise ValueError("cookie must contain 'a1' and 'web_session'")
         return cookie_arg
     if env_file:
         load_dotenv(env_file)
@@ -82,9 +86,15 @@ def load_cookies(cookie_arg: str = "", env_file: str = "") -> str:
         load_dotenv(Path.cwd() / ".env")
         load_dotenv(SKILL_DIR / ".env")
     ck = os.getenv("COOKIES", "")
-    if not ck:
-        raise ValueError("COOKIES not found. Provide --cookie or set COOKIES in .env")
-    return ck
+    if ck:
+        parsed = cookie_str_to_dict(ck)
+        if not has_required_cookies(parsed):
+            raise ValueError("COOKIES must contain 'a1' and 'web_session'")
+        return ck
+    saved = get_saved_cookie_string()
+    if saved:
+        return saved
+    raise ValueError("COOKIES not found. Provide --cookie, set COOKIES in .env, or run login first")
 
 
 def generate_x_b3_traceid(length: int = 16) -> str:
