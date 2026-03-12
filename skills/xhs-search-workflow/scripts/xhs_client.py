@@ -151,21 +151,21 @@ def get_request_headers_template() -> Dict[str, str]:
     return {
         "authority": "edith.xiaohongshu.com",
         "accept": "application/json, text/plain, */*",
-        "accept-language": "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6",
+        "accept-language": "zh-CN,zh;q=0.9",
         "cache-control": "no-cache",
         "content-type": "application/json;charset=UTF-8",
         "origin": "https://www.xiaohongshu.com",
         "pragma": "no-cache",
+        "priority": "u=1, i",
         "referer": "https://www.xiaohongshu.com/",
-        "sec-ch-ua": '"Not A(Brand";v="99", "Microsoft Edge";v="121", "Chromium";v="121"',
+        "sec-ch-ua": '"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"',
         "sec-ch-ua-mobile": "?0",
         "sec-ch-ua-platform": '"Windows"',
         "sec-fetch-dest": "empty",
         "sec-fetch-mode": "cors",
         "sec-fetch-site": "same-site",
-        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36 Edg/121.0.0.0",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
         "x-b3-traceid": "",
-        "x-mns": "unload",
         "x-s": "",
         "x-s-common": "",
         "x-t": "",
@@ -763,13 +763,17 @@ def get_note_no_water_video(note_id: str) -> Tuple[bool, str, str]:
 
 def get_note_no_water_img(img_url: str) -> Tuple[bool, str, str]:
     try:
-        if ".jpg" in img_url:
-            img_id = "/".join([split for split in img_url.split("/")[-3:]]).split("!")[0]
-            return True, "成功", f"https://sns-img-qc.xhscdn.com/{img_id}"
+        token = ""
+        if "notes_pre_post/" in img_url:
+            token = "notes_pre_post/" + img_url.split("notes_pre_post/", 1)[1].split("!", 1)[0].split("?", 1)[0]
+            return True, "成功", f"https://ci.xiaohongshu.com/{token}?imageView2/format/jpeg"
         if "spectrum" in img_url:
-            img_id = "/".join(img_url.split("/")[-2:]).split("!")[0]
-            return True, "成功", f"http://sns-webpic.xhscdn.com/{img_id}?imageView2/2/w/format/jpg"
-        img_id = img_url.split("/")[-1].split("!")[0]
-        return True, "成功", f"https://sns-img-qc.xhscdn.com/{img_id}"
+            token = "/".join(img_url.split("/")[-2:]).split("!", 1)[0].split("?", 1)[0]
+            return True, "成功", f"https://ci.xiaohongshu.com/{token}?imageView2/format/jpeg"
+        if ".jpg" in img_url:
+            token = "/".join([split for split in img_url.split("/")[-3:]]).split("!", 1)[0].split("?", 1)[0]
+            return True, "成功", f"https://ci.xiaohongshu.com/{token}?imageView2/format/jpeg"
+        token = img_url.split("/")[-1].split("!", 1)[0].split("?", 1)[0]
+        return True, "成功", f"https://ci.xiaohongshu.com/{token}?imageView2/format/jpeg"
     except Exception as e:
         return False, str(e), ""

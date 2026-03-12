@@ -130,7 +130,13 @@ def _cookiejar_to_cookie_str(session: requests.Session) -> str:
     return "; ".join(f"{c.name}={c.value}" for c in session.cookies)
 
 
-def _signed_request(session: requests.Session, api: str, data, method: str = "POST") -> Tuple[requests.Response, Dict]:
+def _signed_request(
+    session: requests.Session,
+    api: str,
+    data,
+    method: str = "POST",
+    extra_headers: Dict[str, str] | None = None,
+) -> Tuple[requests.Response, Dict]:
     from xhs_client import generate_request_params, BASE_URL
 
     cookie_str = _cookiejar_to_cookie_str(session)
@@ -140,6 +146,8 @@ def _signed_request(session: requests.Session, api: str, data, method: str = "PO
     headers["xsecappid"] = "xhs-pc-web"
     if api == "/api/qrcode/userinfo":
         headers["service-tag"] = "webcn"
+    if extra_headers:
+        headers.update({k: v for k, v in extra_headers.items() if v is not None})
     if method.upper() == "GET":
         response = session.get(BASE_URL + api, headers=headers, cookies=cookies, timeout=30)
     else:
@@ -183,7 +191,13 @@ def qrcode_login(timeout_seconds: int = 240, cookie_arg: str = "", env_file: str
         _, poll_data = _signed_request(session, "/api/qrcode/userinfo", {"qrId": qr_id, "code": code}, "POST")
         code_status = ((poll_data.get("data") or {}).get("codeStatus"))
         if code_status == 2:
-            _, status_data = _signed_request(session, f"/api/sns/web/v1/login/qrcode/status?qr_id={qr_id}&code={code}", {}, "GET")
+            _, status_data = _signed_request(
+                session,
+                f"/api/sns/web/v1/login/qrcode/status?qr_id={qr_id}&code={code}",
+                "",
+                "GET",
+                extra_headers={"x-login-mode": ""},
+            )
             login_info = ((status_data.get("data") or {}).get("login_info") or {})
             web_session = login_info.get("session")
             if not web_session:
