@@ -30,6 +30,28 @@ def parse_urls(args: argparse.Namespace) -> List[str]:
     return urls
 
 
+def resolve_share_url(url: str, timeout: int = 15) -> str:
+    """Resolve xhs short links to the final long explore URL when possible."""
+    try:
+        host = (urlparse(url).netloc or "").lower()
+        if "xhslink.com" not in host:
+            return url
+        session = requests.Session()
+        resp = session.get(
+            url,
+            timeout=timeout,
+            allow_redirects=True,
+            headers={
+                "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+                "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+            },
+        )
+        final_url = resp.url or url
+        return final_url
+    except Exception:
+        return url
+
+
 def pick_image_url(image_obj: Dict[str, Any]) -> str:
     info_list = image_obj.get("info_list") or []
     if len(info_list) > 1 and info_list[1].get("url"):
@@ -110,18 +132,19 @@ def main() -> int:
     rows: List[Dict[str, Any]] = []
 
     for idx, url in enumerate(urls):
+        resolved_url = resolve_share_url(url, timeout=min(args.timeout, 15))
         success = False
         msg = ""
         res: Dict[str, Any] = {}
         attempts = max(args.retries, 0) + 1
         for attempt in range(1, attempts + 1):
-            success, msg, res = get_note_info(url, cookies, timeout=args.timeout)
+            success, msg, res = get_note_info(resolved_url, cookies, timeout=args.timeout)
             if success:
                 break
             if attempt < attempts:
                 time.sleep(random.uniform(1.0, 2.5))
 
-        row: Dict[str, Any] = {"url": url, "success": success, "msg": msg}
+        row: Dict[str, Any] = {"url": url, "resolved_url": resolved_url, "success": success, "msg": msg}
         if success:
             items = (res or {}).get("data", {}).get("items", [])
             if items:
