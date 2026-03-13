@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 CONFIG_DIR = Path(os.environ.get("XHS_SEARCH_WORKFLOW_HOME", Path.home() / ".xhs-search-workflow"))
 COOKIE_FILE = CONFIG_DIR / "cookies.json"
+QR_CODE_FILE = CONFIG_DIR / "login-qrcode.png"
 REQUIRED_COOKIES = {"a1", "web_session"}
 
 
@@ -100,6 +101,16 @@ def _display_qr_text_in_terminal(qr_text: str) -> None:
     print("\n".join(lines))
 
 
+def _save_qr_png(qr_text: str) -> Path:
+    qr = qrcode.QRCode(border=2, box_size=8)
+    qr.add_data(qr_text)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    img.save(QR_CODE_FILE)
+    return QR_CODE_FILE
+
+
 def _load_login_source_cookie(cookie_arg: str = "", env_file: str = "") -> str:
     if cookie_arg:
         return cookie_arg
@@ -130,6 +141,19 @@ def _cookiejar_to_cookie_str(session: requests.Session) -> str:
     return "; ".join(f"{c.name}={c.value}" for c in session.cookies)
 
 
+def _extract_data(payload: Dict) -> Dict:
+    data = payload.get("data")
+    return data if isinstance(data, dict) else {}
+
+
+def _first_value(mapping: Dict, *keys: str):
+    for key in keys:
+        value = mapping.get(key)
+        if value not in (None, ""):
+            return value
+    return None
+
+
 def _signed_request(
     session: requests.Session,
     api: str,
@@ -143,9 +167,6 @@ def _signed_request(
     headers, cookies, payload = generate_request_params(cookie_str, api, data, method)
     headers["origin"] = "https://www.xiaohongshu.com"
     headers["referer"] = "https://www.xiaohongshu.com/"
-    headers["xsecappid"] = "xhs-pc-web"
-    if api == "/api/qrcode/userinfo":
-        headers["service-tag"] = "webcn"
     if extra_headers:
         headers.update({k: v for k, v in extra_headers.items() if v is not None})
     if method.upper() == "GET":
@@ -157,6 +178,30 @@ def _signed_request(
     except Exception:
         parsed = {"raw": response.text[:2000]}
     return response, parsed
+
+
+def _resolve_login_info(session: requests.Session, qr_id: str, code: str) -> Dict:
+    _, status_data = _signed_request(
+        session,
+        f"/api/sns/web/v1/login/qrcode/status?qr_id={qr_id}&code={code}",
+        "",
+        "GET",
+        extra_headers={"x-login-mode": ""},
+    )
+    status_payload = _extract_data(status_data)
+    login_info = status_payload.get("login_info")
+    if isinstance(login_info, dict) and _first_value(login_info, "session", "web_session"):
+        return login_info
+
+    _, activate_data = _signed_request(session, "/api/sns/web/v1/login/activate", {}, "POST")
+    activate_payload = _extract_data(activate_data)
+    if _first_value(activate_payload, "session", "web_session"):
+        return activate_payload
+
+    raise RuntimeError(
+        "unable to resolve login session from qrcode status or activate: "
+        f"status={status_data}, activate={activate_data}"
+    )
 
 
 def qrcode_login(timeout_seconds: int = 240, cookie_arg: str = "", env_file: str = "") -> str:
@@ -172,44 +217,52 @@ def qrcode_login(timeout_seconds: int = 240, cookie_arg: str = "", env_file: str
     if not create_data.get("success"):
         raise RuntimeError(f"create qrcode failed: {create_data}")
 
-    qr_data = create_data.get("data") or {}
-    qr_id = str(qr_data.get("qr_id") or "")
-    code = str(qr_data.get("code") or "")
-    url = str(qr_data.get("url") or "")
+    qr_data = _extract_data(create_data)
+    qr_id = str(_first_value(qr_data, "qr_id", "qrId") or "")
+    code = str(_first_value(qr_data, "code", "xhs_code") or "")
+    url = str(_first_value(qr_data, "url", "qr_url") or "")
     if not (qr_id and code and url):
         raise RuntimeError(f"invalid qrcode create response: {create_data}")
 
     print("Starting pure-request QR code login...")
+    qr_file = _save_qr_png(url)
     print("\nScan this QR code with the Xiaohongshu app and confirm login:\n")
+    print(f"QR image saved to: {qr_file}")
+    print(f"QR url: {url}\n")
     _display_qr_text_in_terminal(url)
     print(f"\nqr_id={qr_id}")
     print(f"code={code}")
     print("\nWaiting for confirmation...")
 
     loops = max(timeout_seconds // 2, 1)
+    last_status = None
     for idx in range(loops):
         _, poll_data = _signed_request(session, "/api/qrcode/userinfo", {"qrId": qr_id, "code": code}, "POST")
-        code_status = ((poll_data.get("data") or {}).get("codeStatus"))
+        poll_payload = _extract_data(poll_data)
+        code_status = _first_value(poll_payload, "codeStatus", "code_status")
+        if code_status != last_status:
+            if code_status == 1:
+                print("QR code scanned. Please confirm login in the Xiaohongshu app.")
+            elif code_status == 2:
+                print("Login confirmed. Finalizing web session...")
+            elif code_status not in (None, 0):
+                print(f"QR status changed: codeStatus={code_status}")
+            last_status = code_status
         if code_status == 2:
-            _, status_data = _signed_request(
-                session,
-                f"/api/sns/web/v1/login/qrcode/status?qr_id={qr_id}&code={code}",
-                "",
-                "GET",
-                extra_headers={"x-login-mode": ""},
-            )
-            login_info = ((status_data.get("data") or {}).get("login_info") or {})
-            web_session = login_info.get("session")
+            login_info = _resolve_login_info(session, qr_id, code)
+            web_session = _first_value(login_info, "session", "web_session")
             if not web_session:
-                raise RuntimeError(f"qrcode status missing session: {status_data}")
+                raise RuntimeError(f"login info missing session: {login_info}")
             session.cookies.set("web_session", web_session, domain=".xiaohongshu.com")
-            secure_session = login_info.get("secure_session")
+            secure_session = _first_value(login_info, "secure_session")
             if secure_session:
                 session.cookies.set("secure_session", secure_session, domain=".xiaohongshu.com")
             cookie_str = _cookiejar_to_cookie_str(session)
             save_cookies(cookie_str)
             print("Login successful.")
             return cookie_str
+        if code_status in (3, -1):
+            raise RuntimeError(f"QR code expired or rejected: {poll_data}")
         if idx % 15 == 14:
             print(f"Still waiting... current codeStatus={code_status}")
         time.sleep(2)
